@@ -1,17 +1,27 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 26
+    namespace 'com.tomatodev.timerdroid'
+    compileSdkVersion 35
+    lint {
+        // This APK is distributed from Haoke, outside Google Play.
+        disable 'ExpiredTargetSdkVersion'
+    }
     defaultConfig {
-        applicationId "com.tomatodev.timerdroid"
+        applicationId "com.tomatodev.timerdroid.haoke"
+        resValue 'string', 'application_id', 'com.tomatodev.timerdroid.haoke'
         minSdkVersion 18
         targetSdkVersion 26
-        versionCode 1412312
-        versionName "3.1.2"
+        versionCode 1412317
+        versionName "3.1.2-haoke.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
     buildTypes {
+        debug {
+            applicationIdSuffix '.haoke.qa'
+            resValue 'string', 'application_id', 'com.tomatodev.timerdroid.haoke.qa'
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -21,6 +31,38 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    buildFeatures {
+        buildConfig true
+    }
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+// Hosts resolve launcher/shortcut labels before the app process can wrap its locale.
+// Give each supported platform language an explicit English fallback, so [ja, zh]
+// cannot select the later Chinese entry. Runtime UI uses LanguagePolicy's first item.
+def launcherFallbacks = layout.buildDirectory.dir('generated/launcherLocales')
+def generateLauncherFallbacks = tasks.register('generateLauncherFallbacks') {
+    inputs.file('src/main/res/values/strings.xml')
+    outputs.dir(launcherFallbacks)
+    doLast {
+        // Identity, author and URL constants remain in the default resource set.
+        def englishFallback = file('src/main/res/values/strings.xml').getText('UTF-8')
+                .replaceAll(/(?s)\s*<string\b(?=[^>]*translatable="false")[^>]*>.*?<\/string>/, '')
+        Locale.availableLocales.collect { it.language }.findAll {
+            it && !(it in ['zh', 'cs', 'de'])
+        }.unique().each { language ->
+            def directory = new File(launcherFallbacks.get().asFile, "values-b+${language}")
+            directory.mkdirs()
+            new File(directory, 'launcher.xml').setText(englishFallback, 'UTF-8')
+        }
+    }
+}
+android.sourceSets.main.res.srcDir(launcherFallbacks)
+tasks.named('preBuild').configure { dependsOn(generateLauncherFallbacks) }
+if (project.hasProperty('haokeBuildRoot')) {
+    layout.buildDirectory = file("${project.property('haokeBuildRoot')}/app")
 }
 
 dependencies {
@@ -31,7 +73,10 @@ dependencies {
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
     implementation 'com.android.support:support-v4:26.1.0'
     implementation 'com.android.support:support-vector-drawable:26.1.0'
-    testImplementation 'junit:junit:4.12'
+    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    testImplementation 'org.json:json:20240303'
+    testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test:rules:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
 }

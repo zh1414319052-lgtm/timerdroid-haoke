@@ -112,15 +112,9 @@ public class CategoriesFragment extends ListFragment implements LoaderManager.Lo
 											getString(R.string.main_deletedialog_yes),
 											new DialogInterface.OnClickListener() {
 												public void onClick(DialogInterface dialog, int id) {
-													getActivity()
-															.getContentResolver()
-															.delete(Uri
-																	.parse(CategoriesTable.CONTENT_ID_URI_BASE
-																			+ "/"
-																			+ Long.toString(items
-																					.getCursor()
-																					.getInt(0))),
-																	null, null);
+                                                    getActivity().getContentResolver().delete(
+                                                            android.content.ContentUris.withAppendedId(
+                                                                    CategoriesTable.CONTENT_URI, arg3), null, null);
 													fillData();
 												}
 											}).setNegativeButton(

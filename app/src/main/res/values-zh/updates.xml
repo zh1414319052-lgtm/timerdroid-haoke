@@ -1,0 +1,19 @@
+<resources>
+    <string name="about_title">关于</string>
+    <string name="about_close">关闭</string>
+    <string name="haoke_tools">浩科工具站</string>
+    <string name="about_details">%1$s\n版本 %2$s\n\n基于 Alexander Inglessi 的 WPGen 开源项目，原作者版权所有 © 2015。采用 GNU GPL 第 3 版或更新版本许可。本版本包含社区体验与可靠性改进。\n\n上游官网：https://glsk.net\n源码：https://gitlab.com/glsk/wpgen\n许可证：https://www.gnu.org/licenses/gpl-3.0.html</string>
+    <string name="updates_title">版本更新</string>
+    <string name="updates_check">检查浩科版更新</string>
+    <string name="updates_checking">正在检查更新…</string>
+    <string name="updates_available">发现新版本 %1$s</string>
+    <string name="updates_view">查看版本</string>
+    <string name="updates_later">稍后提醒</string>
+    <string name="updates_ignore">忽略此版本</string>
+    <string name="updates_current">暂无兼容的新版本。</string>
+    <string name="updates_unregistered">当前安装版本尚未开通更新通道。</string>
+    <string name="updates_unavailable">无法验证更新信息，请稍后重试。</string>
+    <string name="updates_storage_failed">无法保存更新提醒设置。</string>
+    <string name="updates_browser_unavailable">没有可用于打开版本页面的浏览器。</string>
+    <string name="about_haoke_site">浩科工具站</string>
+</resources>

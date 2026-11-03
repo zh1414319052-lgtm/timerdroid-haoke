@@ -84,7 +84,7 @@ public class WidgetProvider extends ContentProvider {
 	/**
 	 * The authority we use to get to our sample provider.
 	 */
-	public static final String AUTHORITY_TIMERS = "com.tomatodev.timerdroid.persistence.WidgetProvider";
+	public static final String AUTHORITY_TIMERS = com.tomatodev.timerdroid.BuildConfig.APPLICATION_ID + ".persistence.WidgetProvider";
 
 	public WidgetProvider() {
 		// Create and initialize URI matcher.
@@ -98,6 +98,7 @@ public class WidgetProvider extends ContentProvider {
         mNotesProjectionMap.put(WidgetProvider.WidgetTable._ID, WidgetProvider.WidgetTable._ID);
         mNotesProjectionMap.put(WidgetProvider.WidgetTable.WIDGET_KEY_NAME, WidgetProvider.WidgetTable.WIDGET_KEY_NAME);
         mNotesProjectionMap.put(WidgetProvider.WidgetTable.WIDGET_KEY_TIME, WidgetProvider.WidgetTable.WIDGET_KEY_TIME);
+        mNotesProjectionMap.put("tone", "tone");
         mNotesProjectionMap.put(WidgetProvider.WidgetTable.WIDGET_KEY_WIDGET_ID, WidgetProvider.WidgetTable.WIDGET_KEY_WIDGET_ID);
 
 	}

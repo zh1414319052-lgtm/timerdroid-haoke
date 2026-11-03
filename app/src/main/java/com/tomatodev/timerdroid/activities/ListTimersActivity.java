@@ -8,7 +8,7 @@ import android.support.v7.widget.Toolbar;
 
 import com.tomatodev.timerdroid.R;
 
-public class ListTimersActivity extends AppCompatActivity {
+public class ListTimersActivity extends LocalizedActivity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {

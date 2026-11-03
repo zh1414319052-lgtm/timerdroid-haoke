@@ -23,10 +23,10 @@ public class TimerWidgetSmallCursorAdapter extends CursorAdapter {
 	public void bindView(View view, Context context, Cursor cursor) {
 		
 		TextView time = (TextView) view.findViewById(R.id.listcounters_time);
-		time.setText(Utilities.formatTime(cursor.getLong(cursor.getColumnIndex(TimersProvider.TimerTable.TIMER_KEY_TIME))));
+		time.setText(Utilities.formatTime(cursor.getLong(cursor.getColumnIndexOrThrow(TimersProvider.TimerTable.TIMER_KEY_TIME))));
 		
 		TextView name = (TextView) view.findViewById(R.id.listcounters_name);
-		name.setText(cursor.getString(cursor.getColumnIndex(TimersProvider.TimerTable.TIMER_KEY_NAME)));
+		name.setText(cursor.getString(cursor.getColumnIndexOrThrow(TimersProvider.TimerTable.TIMER_KEY_NAME)));
 
 	}
 

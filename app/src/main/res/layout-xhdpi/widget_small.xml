@@ -3,7 +3,7 @@
     android:id="@+id/widget"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/appwidget_dark_bg_clickable"
+    android:background="@drawable/timer_tile"
     android:focusable="true"
     android:orientation="vertical" >
 
@@ -15,7 +15,7 @@
         android:paddingLeft="2dp"
         android:paddingRight="2dp"
         android:text="@string/widget_loading"
-        android:textColor="#ffffff"
+        android:textColor="@color/text_color_primary"
         android:textSize="11sp"
         android:textStyle="bold" />
 

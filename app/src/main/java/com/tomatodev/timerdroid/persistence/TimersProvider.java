@@ -92,7 +92,7 @@ public class TimersProvider extends ContentProvider {
 	/**
 	 * The authority we use to get to our sample provider.
 	 */
-	public static final String AUTHORITY_TIMERS = "com.tomatodev.timerdroid.persistence.TimersProvider";
+	public static final String AUTHORITY_TIMERS = com.tomatodev.timerdroid.BuildConfig.APPLICATION_ID + ".persistence.TimersProvider";
 
 	public TimersProvider() {
 		// Create and initialize URI matcher.
@@ -108,6 +108,7 @@ public class TimersProvider extends ContentProvider {
         mNotesProjectionMap.put(TimersProvider.TimerTable.TIMER_KEY_TIME, TimersProvider.TimerTable.TIMER_KEY_TIME);
         mNotesProjectionMap.put(TimersProvider.TimerTable.TIMER_KEY_CATEGORY, TimersProvider.TimerTable.TIMER_KEY_CATEGORY);
         mNotesProjectionMap.put(TimersProvider.TimerTable.TIMER_KEY_FAVORITE, TimersProvider.TimerTable.TIMER_KEY_FAVORITE);
+        mNotesProjectionMap.put("tone", "tone");
 
 	}
 	
@@ -179,7 +180,15 @@ public class TimersProvider extends ContentProvider {
 
         SQLiteDatabase db = mOpenHelper.getWritableDatabase();
 
-        long rowId = db.insert(TimerTable.TABLE_NAME, null, values);
+        long rowId;
+        db.beginTransaction();
+        try {
+            requireExistingCategory(db, values);
+            rowId = db.insertOrThrow(TimerTable.TABLE_NAME, null, values);
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
 
         // If the insert succeeded, the row ID exists.
         if (rowId > 0) {
@@ -233,32 +242,32 @@ public class TimersProvider extends ContentProvider {
 
 	}
 
-	@Override
-	public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
-		SQLiteDatabase db = mOpenHelper.getWritableDatabase();
-        int count;
-        String finalWhere;
-
-        switch (mUriMatcher.match(uri)) {
-            case TIMER:
-            	count = 0;
-                break;
-
-            case TIMER_ID:
-                // If URI is for a particular row ID, update is based on incoming
-                // data but modified to restrict to the given ID.
-                finalWhere = DatabaseUtils.concatenateWhere(
-                        TimerTable._ID + " = " + ContentUris.parseId(uri), selection);
-                count = db.update(TimerTable.TABLE_NAME, values, finalWhere, selectionArgs);
-                break;
-
-            default:
-                throw new IllegalArgumentException("Unknown URI " + uri);
+    private void requireExistingCategory(SQLiteDatabase db, ContentValues values) {
+        Long category = values.getAsLong(TimerTable.TIMER_KEY_CATEGORY);
+        if (category == null) throw new SQLException("A timer requires an existing category");
+        try (Cursor cursor = db.query(DbAdapter.CATEGORIES_TABLE_NAME, new String[]{"_id"},
+                "_id = ?", new String[]{Long.toString(category)}, null, null, null)) {
+            if (!cursor.moveToFirst()) throw new SQLException("Timer category was deleted");
         }
+    }
 
-        getContext().getContentResolver().notifyChange(uri, null);
-
+    @Override
+    public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+        if (mUriMatcher.match(uri) == TIMER) return 0;
+        if (mUriMatcher.match(uri) != TIMER_ID) throw new IllegalArgumentException("Unknown URI " + uri);
+        SQLiteDatabase db = mOpenHelper.getWritableDatabase();
+        String where = DatabaseUtils.concatenateWhere(
+                TimerTable._ID + " = " + ContentUris.parseId(uri), selection);
+        int count;
+        db.beginTransaction();
+        try {
+            if (values.containsKey(TimerTable.TIMER_KEY_CATEGORY)) requireExistingCategory(db, values);
+            count = db.update(TimerTable.TABLE_NAME, values, where, selectionArgs);
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+        getContext().getContentResolver().notifyChange(TimerTable.CONTENT_URI, null);
         return count;
-	}
-	
+    }
 }

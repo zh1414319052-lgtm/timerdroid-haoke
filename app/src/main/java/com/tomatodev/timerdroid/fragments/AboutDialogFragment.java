@@ -1,6 +1,9 @@
 package com.tomatodev.timerdroid.fragments;
 
-import android.app.AlertDialog;
+import android.support.v7.app.AlertDialog;
+import android.content.Intent;
+import android.content.ActivityNotFoundException;
+import android.net.Uri;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -33,6 +36,7 @@ public class AboutDialogFragment extends DialogFragment {
 
 		TextView tv = layout.findViewById(R.id.websiteTextView);
 		tv.setMovementMethod(LinkMovementMethod.getInstance());
+        ((TextView) layout.findViewById(R.id.textView2)).setText(com.tomatodev.timerdroid.BuildConfig.VERSION_NAME);
 
 		builder = new AlertDialog.Builder(mContext);
 		builder.setView(layout);
@@ -41,6 +45,14 @@ public class AboutDialogFragment extends DialogFragment {
 
 			}
 		});
+        builder.setNeutralButton(R.string.about_haoke_site, (dialog, which) -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://haoke.org")));
+            } catch (ActivityNotFoundException unavailable) {
+                android.widget.Toast.makeText(mContext, R.string.updates_browser_unavailable,
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
 		alertDialog = builder.create();
 		alertDialog.setTitle(R.string.menu_about);
 		return alertDialog;

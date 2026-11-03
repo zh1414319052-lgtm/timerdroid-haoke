@@ -45,34 +45,6 @@ public class WidgetProviderSmall extends AppWidgetProvider {
 	}
 
 	@Override
-	public void onEnabled(Context context) {
-		super.onEnabled(context);
-		connectService(context);
-	}
-
-	private void connectService(Context context) {
-		Intent iTimerService = new Intent(context, TimerService.class);
-		ServiceConnection serviceConnection = new ServiceConnection() {
-
-			@Override
-			public void onServiceDisconnected(ComponentName name) {
-				localBinder = null;
-			}
-
-			@Override
-			public void onServiceConnected(ComponentName name, IBinder service) {
-				localBinder = (LocalBinder) service;
-
-			}
-		};
-		boolean success = context.getApplicationContext().bindService(iTimerService, serviceConnection,
-				Service.BIND_AUTO_CREATE);
-		if (!success) {
-			// TODO: do something
-		}
-	}
-
-	@Override
 	public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
 		super.onUpdate(context, appWidgetManager, appWidgetIds);
 		
@@ -87,8 +59,8 @@ public class WidgetProviderSmall extends AppWidgetProvider {
 
 			cursor.moveToFirst();
 			if (cursor != null && cursor.getCount() > 0) {
-				String name = cursor.getString(cursor.getColumnIndex(WidgetTable.WIDGET_KEY_NAME));
-				long time = cursor.getLong(cursor.getColumnIndex(WidgetTable.WIDGET_KEY_TIME));
+				String name = cursor.getString(cursor.getColumnIndexOrThrow(WidgetTable.WIDGET_KEY_NAME));
+				long time = cursor.getLong(cursor.getColumnIndexOrThrow(WidgetTable.WIDGET_KEY_TIME));
 //				Log.v(Constants.LOG_TAG, "widget: " + name + "; " + time);
 
 				// Update widgets
@@ -96,6 +68,7 @@ public class WidgetProviderSmall extends AppWidgetProvider {
 				intent.setClass(context, WidgetProviderSmall.class);
 				intent.setAction(WidgetProviderSmall.ACTION_WIDGET_RECEIVER_START_TIMER);
 				intent.putExtra("timerTime", time);
+                intent.putExtra("tone", cursor.getString(cursor.getColumnIndexOrThrow("tone")));
 				intent.putExtra("timerName", name);
 				intent.putExtra("widgetId", appWidgetId);
 
@@ -118,59 +91,17 @@ public class WidgetProviderSmall extends AppWidgetProvider {
 		
 	}
 
-	@Override
-	public void onReceive(Context context, Intent intent) {
-		super.onReceive(context, intent);
-
-		String intentAction = intent.getAction();
-
-		if (intentAction.equals(ACTION_WIDGET_RECEIVER_START_TIMER)) {
-
-			final String timerName = intent.getExtras().getString("timerName");
-			final long timerTime = intent.getExtras().getLong("timerTime");
-
-			if (localBinder == null) {
-
-				Intent iTimerService = new Intent(context, TimerService.class);
-				ServiceConnection serviceConnection = new ServiceConnection() {
-
-					@Override
-					public void onServiceDisconnected(ComponentName name) {
-						localBinder = null;
-					}
-
-					@Override
-					public void onServiceConnected(ComponentName name, IBinder service) {
-						localBinder = (LocalBinder) service;
-						localBinder.getService().startTimer(timerName, timerTime);
-
-					}
-				};
-				boolean success = context.getApplicationContext().bindService(iTimerService, serviceConnection,
-						Service.BIND_AUTO_CREATE);
-				if (!success) {
-					// TODO: do something
-				}
-
-			} else {
-
-				localBinder.getService().startTimer(timerName, timerTime);
-
-				// updateViews.setTextColor(R.id.widget_listcounters_name,
-				// Color.RED);
-
-				// ComponentName thisWidget = new ComponentName(context,
-				// WidgetProviderSmall.class);
-				// AppWidgetManager manager =
-				// AppWidgetManager.getInstance(context);
-				// manager.updateAppWidget(thisWidget, updateViews);
-
-				// for debugging only
-//				int widgetId = intent.getExtras().getInt("widgetId");
-//				String msg = timerName + ", ID: " + widgetId + " started";
-//				Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
-			}
-		}
-
-	}
+    @Override public void onReceive(Context context, Intent intent) {
+        if (!ACTION_WIDGET_RECEIVER_START_TIMER.equals(intent.getAction())) {
+            super.onReceive(context, intent);
+            return;
+        }
+        long duration = intent.getLongExtra("timerTime", 0);
+        if (duration <= 0 || duration > TimerService.MAX_DURATION) return;
+        Intent start = new Intent(context, TimerService.class).setAction(TimerService.START_WIDGET)
+                .putExtra("timerName", intent.getStringExtra("timerName"))
+                .putExtra("timerTime", duration).putExtra("tone", intent.getStringExtra("tone"));
+        if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(start);
+        else context.startService(start);
+    }
 }

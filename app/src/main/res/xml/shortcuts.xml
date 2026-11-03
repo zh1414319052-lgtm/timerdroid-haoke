@@ -8,7 +8,7 @@
         >
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.tomatodev.timerdroid"
+            android:targetPackage="@string/application_id"
             android:targetClass="com.tomatodev.timerdroid.activities.TimerActivity" />
     </shortcut>
 </shortcuts>

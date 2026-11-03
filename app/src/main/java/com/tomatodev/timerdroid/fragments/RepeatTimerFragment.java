@@ -57,13 +57,14 @@ public class RepeatTimerFragment extends DialogFragment {
 				
 				List<TimerDescription> queue = new ArrayList<TimerDescription>();
 				for (int j = 0; j < numberPicker.getValue() - 1; j++){
-					queue.add(new TimerDescription(timerName, timerTime));
+					queue.add(new TimerDescription(timerName, timerTime, getArguments().getString("tone")));
 				}
 				
 				MyApplication.showRunningTimers = true;
 				
-				localBinder.getService().startTimer(timerName,
-						timerTime, queue);
+				if (localBinder == null) return;
+                queue.add(0, new TimerDescription(timerName, timerTime, getArguments().getString("tone")));
+                localBinder.getService().startWorkflow(queue, false);
 				Intent intent = new Intent(getActivity().getApplicationContext(), HomeActivity.class);
 				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP
 						| Intent.FLAG_ACTIVITY_CLEAR_TOP);

@@ -14,8 +14,8 @@
     <string name="menu_new_timer">New Timer</string>
     <string name="menu_new_category">New Category</string>
     <string name="feedback_chooser_title">Choose app</string>
-    <string name="menu_feedback_subject" translatable="false">Feedback TimerDroid</string>
-    <string name="menu_feedback_address">tomatodevs@googlemail.com</string>
+    <string name="menu_feedback_subject">Feedback TimerDroid</string>
+    <string name="menu_feedback_address" translatable="false">tomatodevs@googlemail.com</string>
     <string name="menu_share_subject">Android Timer App</string>
     <string name="about_author_label">Author</string>
     <string name="about_author" translatable="false">Martin Hoffmann</string>
@@ -60,7 +60,7 @@
     <string name="categories_rename_category">Edit Category</string>
     <string name="categories_choose_image">Choose image</string>
     <string name="categories_deletedialog_title_1">Really delete this category</string>
-    <string name="categories_deletedialog_title_2">and all its timers?</string>
+    <string name="categories_deletedialog_title_2">and all its presets? Running timers will continue.</string>
 
     <string name="list_timers_title">Timers</string>
     <string name="list_timers_title_favorites">Favorites</string>
@@ -101,4 +101,52 @@
     <string name="popup_timer_stop">Stop</string>
     <string name="menu_share_url" translatable="false">https://play.google.com/store/apps/details?id=com.tomatodev.timerdroid</string>
 
+    <string name="create_timer_service_pending">Connecting to the timer service. Please try again.</string>
+    <string name="create_timer_no_category">Create or choose a category first</string>
+    <string name="create_timer_missing">This preset was deleted. Return to the list.</string>
+    <string name="create_timer_save_failed">Could not save. Your input is kept; please try again.</string>
+    <string name="about_upstream">Upstream project and GPL-3.0 license</string>
+    <string name="timer_waiting">Step finished. Ready for the next step.</string>
+    <string name="timer_next">Next step</string>
+    <string name="timer_remaining">%1$s remaining</string>
+    <string name="timer_paused_left">Paused · %1$s</string>
+    <string name="timer_add_minute">+1 min</string>
+    <string name="timer_stop">Stop</string>
+    <string name="timer_pause">Pause</string>
+    <string name="timer_resume">Resume</string>
+    <string name="timer_minutes_short">%1$d min</string>
+    <string name="quick_edit">Edit shortcuts</string>
+    <string name="quick_minutes">Quick timer duration in minutes</string>
+    <string name="quick_invalid">Enter 1 to 1440 minutes</string>
+    <string name="tone_default">Default alarm</string>
+    <string name="tone_bell">Bell</string>
+    <string name="tone_chime">Chime</string>
+    <string name="tone_pulse">Pulse</string>
+    <string name="tone_label">Alarm sound</string>
+    <string name="workflows">Saved workflows</string>
+    <string name="workflow_new">New workflow</string>
+    <string name="workflow_start">Run workflow</string>
+    <string name="workflow_delete">Delete workflow</string>
+    <string name="workflow_name">Workflow name</string>
+    <string name="workflow_confirm_next">Confirm before starting each next step</string>
+    <string name="workflow_up">Move up</string>
+    <string name="workflow_down">Move down</string>
+    <string name="workflow_remove_step">Remove step</string>
+    <string name="workflow_add_step">Add preset as a step</string>
+    <string name="workflow_edit">Edit workflow</string>
+    <string name="workflow_invalid">Enter a name and add at least one step</string>
+    <string name="workflow_no_presets">Create a timer preset first</string>
+    <string name="workflow_error">Could not complete the workflow operation</string>
+    <string name="backup_export">Export backup</string>
+    <string name="backup_import">Import backup</string>
+    <string name="backup_exported">Backup saved</string>
+    <string name="backup_imported">Backup merged with your presets</string>
+    <string name="backup_error">Could not read or write this backup</string>
+    <string name="quick_edit_short">Edit</string><string name="notification_enable">Enable timer notifications</string>
+    <string name="quick_section">Quick timers</string>
+    <string name="status_running">Running</string>
+    <string name="status_paused">Paused</string>
+    <string name="home_add">New timer or category</string>
+    <string name="favorites_empty">No favorites yet</string>
+    <string name="home_back">Back</string>
 </resources>

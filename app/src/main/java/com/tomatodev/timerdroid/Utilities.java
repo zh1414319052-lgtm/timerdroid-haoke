@@ -23,10 +23,12 @@ public class Utilities {
 		String minutesD = String.valueOf(minutes);
 		String hoursD = String.valueOf(hours);
 
-		if (seconds < 10)
+		if (seconds < 10) {
 			secondsD = "0" + seconds;
-		if (minutes < 10)
+		}
+		if (minutes < 10) {
 			minutesD = "0" + minutes;
+		}
 
         if (hours > 0) {
             output = hoursD + " : " + minutesD + " : " + secondsD;
@@ -37,64 +39,14 @@ public class Utilities {
 		return output;
 	}
 	
-	public static String formatTimeNoBlanks(long millis) {
-		long seconds = Math.round(millis / 1000.0);
-		long minutes = seconds / 60;
-		long hours = minutes / 60;
+    public static String formatTimeNoBlanks(long millis) {
+        return formatTime(millis).replace(" ", "");
+    }
 
-		seconds = seconds % 60;
-		minutes = minutes % 60;
+    public static String formatTimeNoBlanksNoLeadingZeros(long millis) {
+        return formatTimeNoBlanks(millis);
+    }
 
-		String secondsD = String.valueOf(seconds);
-		String minutesD = String.valueOf(minutes);
-		String hoursD = String.valueOf(hours);
-
-		if (seconds < 10)
-			secondsD = "0" + seconds;
-		if (minutes < 10)
-			minutesD = "0" + minutes;
-		if (hours < 10)
-			hoursD = "0" + hours;
-
-		StringBuffer output = new StringBuffer();
-		if (hours > 0)
-			output.append(hoursD + "h");
-		output.append(minutesD + "m" + secondsD + "s");
-		return output.toString();
-	}
-	
-	public static String formatTimeNoBlanksNoLeadingZeros(long millis) {
-		long seconds = Math.round(millis / 1000.0);
-		long minutes = seconds / 60;
-		long hours = minutes / 60;
-
-		seconds = seconds % 60;
-		minutes = minutes % 60;
-
-		String secondsD = String.valueOf(seconds);
-		String minutesD = String.valueOf(minutes);
-		String hoursD = String.valueOf(hours);
-
-		if (seconds < 10)
-			secondsD = "0" + seconds;
-		if (minutes < 10 && hours > 0) 
-			minutesD = "0" + minutes;
-
-		StringBuffer output = new StringBuffer();
-		if (hours > 0)
-			output.append(hoursD + "h");
-		output.append(minutesD);
-		
-		if (hours == 0 && seconds == 0)
-			output.append("min");
-		else
-			output.append("m");
-		
-		if (seconds > 0) 
-			output.append(secondsD + "s");
-		return output.toString();
-	}
-	
 	public static int[] lengthToTime(long millis) {
 		int [] times = new int [3];
 		long seconds = Math.round(millis / 1000.0);

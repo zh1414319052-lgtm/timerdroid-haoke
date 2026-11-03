@@ -17,7 +17,7 @@ import com.tomatodev.timerdroid.R;
 public class DbAdapter {
 
 	private static final String DATABASE_NAME = "data";
-	private static final int DATABASE_VERSION = 1;
+	private static final int DATABASE_VERSION = 2;
 
 	public static final String TIMER_TABLE_NAME = "timers";
 	public static final String TIMER_KEY_ID = "_id";
@@ -71,44 +71,31 @@ public class DbAdapter {
 			db.execSQL(CATEGORIES_TABLE_CREATE);
 			db.execSQL(TIMER_TABLE_CREATE);
 			db.execSQL(WIDGET_TABLE_CREATE);
+            upgradeV2(db);
 			importFromCsv(db);
 		}
 
-		@Override
-		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-//			Log.w(Constants.LOG_TAG, "Upgrading database from version " + oldVersion + " to "
-//					+ newVersion + ", which will destroy all old data");
-			db.execSQL("DROP TABLE IF EXISTS " + TIMER_TABLE_NAME);
-			db.execSQL("DROP TABLE IF EXISTS " + CATEGORIES_TABLE_NAME);
-			db.execSQL("DROP TABLE IF EXISTS " + WidgetProvider.WidgetTable.TABLE_NAME);
-			onCreate(db);
+        @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+            if (oldVersion < 2) upgradeV2(db);
+        }
 
-		}
-		
+        private void upgradeV2(SQLiteDatabase db) {
+            db.execSQL("ALTER TABLE timers ADD COLUMN tone TEXT NOT NULL DEFAULT ''");
+            db.execSQL("ALTER TABLE " + WidgetProvider.WidgetTable.TABLE_NAME
+                    + " ADD COLUMN tone TEXT NOT NULL DEFAULT ''");
+            db.execSQL(TimerLibrary.CREATE_FLOWS);
+        }
+
 		/**
 		 * Loads categories and timers from a csv file
 		 * @param db
 		 */
 		private void importFromCsv(SQLiteDatabase db){
-			Locale locale = Locale.getDefault();
-//			Log.v(Constants.LOG_TAG, "Locale: " + locale.toString());
-			
-			InputStream isTimers;
-			InputStream isCategories;
-			
-			if (locale.getLanguage().equalsIgnoreCase("de")){
-				isTimers = mCtx.getResources().openRawResource(R.raw.timers_de);
-				isCategories = mCtx.getResources().openRawResource(R.raw.categories_de);
-			} else {
-				if (locale.getLanguage().equalsIgnoreCase("es")){
-					isTimers = mCtx.getResources().openRawResource(R.raw.timers_es);
-					isCategories = mCtx.getResources().openRawResource(R.raw.categories_es);
-				} else {
-					isTimers = mCtx.getResources().openRawResource(R.raw.timers);
-					isCategories = mCtx.getResources().openRawResource(R.raw.categories);
-				}
-			}
-			
+            // Seed only a new database. Never translate or replace existing user records.
+            boolean chinese = "zh".equals(mCtx.getResources().getConfiguration().locale.getLanguage());
+            InputStream isTimers = mCtx.getResources().openRawResource(chinese ? R.raw.timers_zh : R.raw.timers);
+            InputStream isCategories = mCtx.getResources().openRawResource(chinese ? R.raw.categories_zh : R.raw.categories);
+
 			// insert categories into db
 			try {
 				BufferedReader br = new BufferedReader(new InputStreamReader(new DataInputStream(isCategories), "utf8"),8192);

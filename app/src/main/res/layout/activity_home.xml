@@ -21,43 +21,19 @@
             android:layout_height="?attr/actionBarSize"
             android:layout_weight="1"
             android:background="?attr/colorPrimary"
-            app:layout_scrollFlags="scroll|enterAlways"
             app:title="@string/app_name">
         </android.support.v7.widget.Toolbar>
 
         <android.support.design.widget.TabLayout
             android:id="@+id/tabs"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <android.support.design.widget.TabItem
-                android:id="@+id/tabRunningTimers"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/running_timers" />
-
-            <android.support.design.widget.TabItem
-                android:id="@+id/tabCategories"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/categories_title" />
-
-        </android.support.design.widget.TabLayout>
+            android:layout_height="wrap_content" app:tabIndicatorColor="@color/colorAccent" app:tabTextColor="@color/text_color_secondary" app:tabSelectedTextColor="@color/text_color_primary" />
     </android.support.design.widget.AppBarLayout>
 
     <android.support.v4.view.ViewPager
         android:id="@+id/container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="50dp"
+        android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/fab"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end|bottom"
-        android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@drawable/ic_add_black_24dp" />
 
 </android.support.design.widget.CoordinatorLayout>

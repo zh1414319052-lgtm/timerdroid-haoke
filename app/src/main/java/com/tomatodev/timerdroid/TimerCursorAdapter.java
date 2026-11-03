@@ -45,15 +45,16 @@ public class TimerCursorAdapter extends CursorAdapter {
 
 	public void bindView(final View view, final Context context, Cursor cursor) {
 		
-		final String timerName = cursor.getString(cursor.getColumnIndex(DbAdapter.TIMER_KEY_NAME));
-		final int timerId = cursor.getInt(cursor.getColumnIndex(DbAdapter.TIMER_KEY_ID));
-		final long timerTime = cursor.getLong(cursor.getColumnIndex(TimerTable.TIMER_KEY_TIME));
+		final String timerName = cursor.getString(cursor.getColumnIndexOrThrow(DbAdapter.TIMER_KEY_NAME));
+		final int timerId = cursor.getInt(cursor.getColumnIndexOrThrow(DbAdapter.TIMER_KEY_ID));
+		final long timerTime = cursor.getLong(cursor.getColumnIndexOrThrow(TimerTable.TIMER_KEY_TIME));
+        final String tone = cursor.getString(cursor.getColumnIndexOrThrow("tone"));
 		
 		TextView time = (TextView) view.findViewById(R.id.listcounters_time);
-		time.setText(Utilities.formatTime(cursor.getLong(cursor.getColumnIndex(DbAdapter.TIMER_KEY_TIME))));
+		time.setText(Utilities.formatTime(cursor.getLong(cursor.getColumnIndexOrThrow(DbAdapter.TIMER_KEY_TIME))));
 
 		TextView name = (TextView) view.findViewById(R.id.listcounters_name);
-		name.setText(cursor.getString(cursor.getColumnIndex(DbAdapter.TIMER_KEY_NAME)));
+		name.setText(cursor.getString(cursor.getColumnIndexOrThrow(DbAdapter.TIMER_KEY_NAME)));
 		View.OnClickListener timerOnClickListener = new View.OnClickListener() {
 			
 			@Override
@@ -77,6 +78,7 @@ public class TimerCursorAdapter extends CursorAdapter {
 							    newFragment.show(fm, "dialog");
 								return true;
 							case R.id.popup_timer_run_repeated:
+                                if (mLocalBinder == null) return true;
 								FragmentTransaction ft = fm.beginTransaction();
 							    ft.addToBackStack(null);
 							    RepeatTimerFragment repeatTimerFragment = new RepeatTimerFragment();
@@ -84,6 +86,7 @@ public class TimerCursorAdapter extends CursorAdapter {
                                 arguments.putBinder("localBinder", mLocalBinder);
                                 arguments.putString("timerName", timerName);
                                 arguments.putLong("timerTime", timerTime);
+                                arguments.putString("tone", tone);
                                 repeatTimerFragment.setArguments(arguments);
                                 repeatTimerFragment.show(ft, "dialog");
 								return true;
@@ -102,7 +105,8 @@ public class TimerCursorAdapter extends CursorAdapter {
 			
 			@Override
 			public void onClick(View v) {
-				mLocalBinder.getService().startTimer(timerName, timerTime);
+				if (mLocalBinder == null) return;
+                mLocalBinder.getService().startPreset(timerName, timerTime, tone);
                 TimerShortcutManager.storeAppShortcut(mContext, timerId, timerName, timerTime);
 
 				Fragment timerListFragment = fm.findFragmentById(R.id.fragment_timer_list);

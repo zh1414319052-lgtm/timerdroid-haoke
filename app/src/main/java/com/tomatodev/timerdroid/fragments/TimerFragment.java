@@ -49,6 +49,10 @@ public class TimerFragment extends Fragment {
 	private LocalBinder localBinder;
 	private Spinner categorySpinner;
 	private CheckBox favoriteCheckBox;
+    private android.widget.Button toneButton;
+    private int toneIndex;
+    private ServiceConnection timerConnection;
+    private boolean timerBound;
     private int mTimerId;
 
     @Override
@@ -61,7 +65,8 @@ public class TimerFragment extends Fragment {
 	public void onActivityCreated(Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
 
-        mTimerId = getActivity().getIntent().getIntExtra("timerId", -1);
+        mTimerId = savedInstanceState != null ? savedInstanceState.getInt("savedTimerId", -1)
+                : getActivity().getIntent().getIntExtra("timerId", -1);
 
 		pickerHrs = getActivity().findViewById(R.id.timer_picker_hrs);
 		pickerMins = getActivity().findViewById(R.id.timer_picker_mins);
@@ -87,7 +92,7 @@ public class TimerFragment extends Fragment {
 		favoriteCheckBox = getActivity().findViewById(R.id.checkBoxFavorite);
 
 		Intent intent = new Intent(this.getActivity(), TimerService.class);
-		ServiceConnection serviceConnection = new ServiceConnection() {
+		timerConnection = new ServiceConnection() {
 
 			@Override
 			public void onServiceDisconnected(ComponentName name) {
@@ -99,13 +104,16 @@ public class TimerFragment extends Fragment {
 				localBinder = (LocalBinder) service;
 			}
 		};
-		boolean success = getActivity().getApplicationContext().bindService(intent, serviceConnection,
+		timerBound = getActivity().bindService(intent, timerConnection,
 				AppCompatActivity.BIND_AUTO_CREATE);
 		// if (!success) {
 		// // TODO: do something
 		// }
 
-		categorySpinner = getActivity().findViewById(R.id.spinner_category);
+        toneButton = getActivity().findViewById(R.id.timer_tone);
+        toneButton.setOnClickListener(view -> chooseTone());
+        showTone(0);
+        categorySpinner = getActivity().findViewById(R.id.spinner_category);
 		Cursor cursor = getCategoriesCursor();
 		getActivity().startManagingCursor(cursor);
 		String[] columns = new String[] { DbAdapter.CATEGORIES_KEY_NAME };
@@ -127,7 +135,10 @@ public class TimerFragment extends Fragment {
 				adjustCategorySpinner(categoryId);
 			}
             actionBar.setTitle(R.string.menu_new_timer);
-		}
+        }
+        if (savedInstanceState != null && savedInstanceState.containsKey("toneIndex")) {
+            showTone(savedInstanceState.getInt("toneIndex"));
+        }
 	}
 
 	@Override
@@ -163,134 +174,133 @@ public class TimerFragment extends Fragment {
 		return super.onOptionsItemSelected(item);
 	}
 
-	private void startTimer() {
-		long length = Utilities.computeLength(pickerHrs.getValue(), pickerMins.getValue(), pickerSecs.getValue());
-        String timerName = timerNameEditText.getText().toString();
-		if (localBinder != null) {
+    @Override
+    public void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putInt("savedTimerId", mTimerId);
+        state.putInt("toneIndex", toneIndex);
+    }
 
-			localBinder.getService().startTimer(timerName, length);
-		}
+    private long readDuration() {
+        // Commit a typed NumberPicker value before the toolbar receives focus.
+        pickerHrs.clearFocus(); pickerMins.clearFocus(); pickerSecs.clearFocus();
+        return Utilities.computeLength(pickerHrs.getValue(), pickerMins.getValue(), pickerSecs.getValue());
+    }
 
-		if (mTimerId != -1) {
-		    TimerShortcutManager.storeAppShortcut(getContext(), mTimerId, timerName, length);
+    private void message(int resource) {
+        Toast.makeText(getActivity(), resource, Toast.LENGTH_SHORT).show();
+    }
+
+    private void startTimer() {
+        long length = readDuration();
+        if (length <= 0) { message(R.string.create_timer_no_time_set); return; }
+        if (localBinder == null) { message(R.string.create_timer_service_pending); return; }
+        String name = timerNameEditText.getText().toString().trim();
+        localBinder.getService().startPreset(name, length, selectedTone());
+        if (mTimerId != -1) {
+            TimerShortcutManager.storeAppShortcut(getContext(), mTimerId,
+                    name.isEmpty() ? getString(R.string.cr_timer_custom) : name, length);
         }
+        MyApplication.showRunningTimers = true;
+        Intent home = new Intent(getActivity(), HomeActivity.class);
+        home.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(home);
+        getActivity().finish();
+    }
 
-		MyApplication.showRunningTimers = true;
-		getActivity().finish();
-		Intent i = new Intent(getActivity().getApplicationContext(), HomeActivity.class);
-		i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP
-				| Intent.FLAG_ACTIVITY_CLEAR_TOP);
-	}
+    @Override public void onDestroyView() {
+        if (timerBound) getActivity().unbindService(timerConnection);
+        timerBound = false;
+        localBinder = null;
+        super.onDestroyView();
+    }
 
-	private void saveTimer() {
-		long length = Utilities.computeLength(pickerHrs.getValue(), pickerMins.getValue(), pickerSecs.getValue());
-		String timerName = timerNameEditText.getText().toString();
-		int isFavorite = 0;
-		if (favoriteCheckBox.isChecked()) {
-			isFavorite = 1;
-		}
+    private void showTone(int index) {
+        toneIndex = index;
+        toneButton.setText(com.tomatodev.timerdroid.service.AlarmTones.labels(getActivity())[index]);
+    }
+
+    private void chooseTone() {
+        int[] selection = {toneIndex};
+        new android.support.v7.app.AlertDialog.Builder(getActivity()).setTitle(R.string.tone_label)
+                .setSingleChoiceItems(com.tomatodev.timerdroid.service.AlarmTones.labels(getActivity()),
+                        toneIndex, (dialog, index) -> selection[0] = index)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> showTone(selection[0]))
+                .show();
+    }
+
+    private String selectedTone() {
+        return com.tomatodev.timerdroid.service.AlarmTones.key(toneIndex);
+    }
+
+    private void saveTimer() {
+        long length = readDuration();
+        String name = timerNameEditText.getText().toString().trim();
+        if (length <= 0) { message(R.string.create_timer_no_time_set); return; }
+        if (name.isEmpty()) { message(R.string.create_timer_no_name_set); return; }
         long category = categorySpinner.getSelectedItemId();
-
-		if (length == 0 || timerName.length() == 0) {
-			if (length == 0) {
-				Toast toast = Toast.makeText(getActivity().getApplicationContext(), R.string.create_timer_no_time_set,
-						Toast.LENGTH_SHORT);
-				toast.setGravity(Gravity.TOP, 0, 40);
-				toast.show();
-			} else {
-				Toast toast = Toast.makeText(getActivity().getApplicationContext(), R.string.create_timer_no_name_set,
-						Toast.LENGTH_SHORT);
-				toast.setGravity(Gravity.TOP, 0, 40);
-				toast.show();
-			}
-		} else {
-            ContentValues values = new ContentValues();
-            values.put(TimerTable.TIMER_KEY_NAME, timerName);
-            values.put(TimerTable.TIMER_KEY_TIME, String.valueOf(length));
-            values.put(TimerTable.TIMER_KEY_CATEGORY, (int) category);
-            values.put(TimerTable.TIMER_KEY_FAVORITE, isFavorite);
-
-			if (mTimerId != -1) {
-				getActivity().getContentResolver().update(
-						Uri.parse(TimerTable.CONTENT_ID_URI_BASE + "/" + Integer.toString(mTimerId)), values, null, null);
-
-				Toast toast = Toast.makeText(getActivity().getApplicationContext(), R.string.create_timer_timer_saved,
-						Toast.LENGTH_SHORT);
-				toast.setGravity(Gravity.TOP, 0, 40);
-				toast.show();
-			} else {
-				getActivity().getContentResolver().insert(TimerTable.CONTENT_URI, values);
-
-				Toast toast = Toast.makeText(getActivity().getApplicationContext(), R.string.create_timer_timer_saved,
-						Toast.LENGTH_SHORT);
-				toast.setGravity(Gravity.TOP, 0, 40);
-				toast.show();
-			}
-		}
-	}
-	
-	private void showTimer(int id) {
-		final String[] projection = new String[] { TimersProvider.TimerTable._ID,
-				TimersProvider.TimerTable.TIMER_KEY_NAME, TimersProvider.TimerTable.TIMER_KEY_TIME,
-				TimersProvider.TimerTable.TIMER_KEY_CATEGORY,
-				TimersProvider.TimerTable.TIMER_KEY_FAVORITE, };
-		Cursor cursor = getActivity().getContentResolver().query(
-				Uri.parse(TimerTable.CONTENT_ID_URI_BASE + "/" + id), projection, null, null,
-				TimerTable.TIMER_KEY_ID);
-
-		cursor.moveToFirst();
-		if (!cursor.isAfterLast()) {
-			// Update text field
-			timerNameEditText.setText(cursor.getString(cursor.getColumnIndex(TimerTable.TIMER_KEY_NAME)));
-			
-			// Set favorite field
-			if (cursor.getInt(cursor.getColumnIndex(TimerTable.TIMER_KEY_FAVORITE)) == 1) {
-				favoriteCheckBox.setChecked(true);
-			} else {
-				favoriteCheckBox.setChecked(false);
-			}
-
-			// Update time
-			long updateValue = cursor.getLong(cursor.getColumnIndex(TimerTable.TIMER_KEY_TIME));
-
-			int times[] = Utilities.lengthToTime(updateValue);
-			pickerSecs.setValue(times[0]);
-			pickerMins.setValue(times[1]);
-			pickerHrs.setValue(times[2]);
-
-			// Update Category
-			int catID = cursor.getInt(cursor.getColumnIndex(TimerTable.TIMER_KEY_CATEGORY));
-			adjustCategorySpinner(catID);
-		}
-	}
-
-	private void adjustCategorySpinner(int catID) {
-		Cursor cursorAllCat = getCategoriesCursor();
-
-		// loop over all categories to find the position for the current
-		// category id
-        if (cursorAllCat.getCount() > 0) {
-            cursorAllCat.moveToFirst();
-            int position = 1;
-            do {
-                if (cursorAllCat.getInt(0) == catID)
-                    break;
-
-                cursorAllCat.moveToNext();
-                position++;
-            } while (!cursorAllCat.isLast());
-
-            String[] columns = new String[] { CategoriesTable.CATEGORIES_KEY_NAME };
-            int[] to = new int[] { android.R.id.text1 };
-
-            SimpleCursorAdapter mAdapter = new SimpleCursorAdapter(this.getActivity(),
-                    android.R.layout.simple_spinner_item, cursorAllCat, columns, to);
-
-            mAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            categorySpinner.setAdapter(mAdapter);
-		    categorySpinner.setSelection(position - 1);
+        if (category < 0) { message(R.string.create_timer_no_category); return; }
+        ContentValues values = new ContentValues();
+        values.put(TimerTable.TIMER_KEY_NAME, name);
+        values.put("tone", selectedTone());
+        values.put(TimerTable.TIMER_KEY_TIME, Long.toString(length));
+        values.put(TimerTable.TIMER_KEY_CATEGORY, category);
+        values.put(TimerTable.TIMER_KEY_FAVORITE, favoriteCheckBox.isChecked() ? 1 : 0);
+        try {
+            if (mTimerId == -1) {
+                Uri saved = getActivity().getContentResolver().insert(TimerTable.CONTENT_URI, values);
+                if (saved == null) { message(R.string.create_timer_save_failed); return; }
+                mTimerId = (int) android.content.ContentUris.parseId(saved);
+                getActivity().getIntent().putExtra("timerId", mTimerId);
+                ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(R.string.cr_timer_edit_title);
+            } else {
+                Uri target = android.content.ContentUris.withAppendedId(TimerTable.CONTENT_URI, mTimerId);
+                if (getActivity().getContentResolver().update(target, values, null, null) == 0) {
+                    message(R.string.create_timer_missing); return;
+                }
+            }
+            message(R.string.create_timer_timer_saved);
+        } catch (android.database.SQLException failure) {
+            android.util.Log.e("TimerDroid", "Could not save timer", failure);
+            message(R.string.create_timer_save_failed);
         }
-	}
+    }
+
+    private void showTimer(int id) {
+        Uri target = android.content.ContentUris.withAppendedId(TimerTable.CONTENT_URI, id);
+        try (Cursor cursor = getActivity().getContentResolver().query(target, null, null, null, null)) {
+            if (cursor == null || !cursor.moveToFirst()) {
+                message(R.string.create_timer_missing);
+                getActivity().finish();
+                return;
+            }
+            timerNameEditText.setText(cursor.getString(cursor.getColumnIndexOrThrow(TimerTable.TIMER_KEY_NAME)));
+            favoriteCheckBox.setChecked(cursor.getInt(cursor.getColumnIndexOrThrow(TimerTable.TIMER_KEY_FAVORITE)) == 1);
+            int[] times = Utilities.lengthToTime(cursor.getLong(cursor.getColumnIndexOrThrow(TimerTable.TIMER_KEY_TIME)));
+            pickerSecs.setValue(times[0]); pickerMins.setValue(times[1]); pickerHrs.setValue(times[2]);
+            adjustCategorySpinner(cursor.getInt(cursor.getColumnIndexOrThrow(TimerTable.TIMER_KEY_CATEGORY)));
+            showTone(com.tomatodev.timerdroid.service.AlarmTones.index(
+                    cursor.getString(cursor.getColumnIndexOrThrow("tone"))));
+        }
+    }
+
+    private void adjustCategorySpinner(int categoryId) {
+        // Reuse the managed spinner cursor. A deleted/last/only category must not
+        // move past the end or leak a second cursor.
+        SimpleCursorAdapter adapter = (SimpleCursorAdapter) categorySpinner.getAdapter();
+        Cursor cursor = adapter.getCursor();
+        if (cursor == null) return;
+        int selection = 0;
+        for (int position = 0; position < cursor.getCount(); position++) {
+            cursor.moveToPosition(position);
+            if (cursor.getInt(cursor.getColumnIndexOrThrow(CategoriesTable._ID)) == categoryId) {
+                selection = position;
+                break;
+            }
+        }
+        if (cursor.getCount() > 0) categorySpinner.setSelection(selection);
+    }
 
 	private Cursor getCategoriesCursor() {
 		final String[] categoryProjection = new String[] { CategoriesProvider.CategoriesTable._ID,

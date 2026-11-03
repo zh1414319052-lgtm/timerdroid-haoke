@@ -23,6 +23,9 @@ import com.tomatodev.timerdroid.persistence.TimersProvider;
 import com.tomatodev.timerdroid.persistence.WidgetProvider.WidgetTable;
 
 public class AppWidgetConfigure extends ListActivity implements LoaderManager.LoaderCallbacks<Cursor> {
+    @Override protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(com.tomatodev.timerdroid.LanguagePolicy.wrap(base));
+    }
 
 	private int mAppWidgetId = 0;
 	
@@ -62,15 +65,17 @@ public class AppWidgetConfigure extends ListActivity implements LoaderManager.Lo
 
 			@Override
 			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-				String timerName = items.getCursor().getString(items.getCursor().getColumnIndex(DbAdapter.TIMER_KEY_NAME));
-				long timerTime = items.getCursor().getLong(items.getCursor().getColumnIndex(DbAdapter.TIMER_KEY_TIME));
+				String timerName = items.getCursor().getString(items.getCursor().getColumnIndexOrThrow(DbAdapter.TIMER_KEY_NAME));
+				long timerTime = items.getCursor().getLong(items.getCursor().getColumnIndexOrThrow(DbAdapter.TIMER_KEY_TIME));
 
 				AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(getApplicationContext());
 
 				Intent intent = new Intent(getApplicationContext(), WidgetProviderSmall.class);
 				intent.setClass(getApplicationContext(), WidgetProviderSmall.class);
 				intent.setAction(WidgetProviderSmall.ACTION_WIDGET_RECEIVER_START_TIMER);
-				intent.putExtra("timerTime", timerTime);
+				String tone = items.getCursor().getString(items.getCursor().getColumnIndexOrThrow("tone"));
+                intent.putExtra("timerTime", timerTime);
+                intent.putExtra("tone", tone);
 				intent.putExtra("timerName", timerName);
 				intent.putExtra("widgetId", mAppWidgetId);
 				
@@ -89,6 +94,7 @@ public class AppWidgetConfigure extends ListActivity implements LoaderManager.Lo
 				ContentValues values = new ContentValues();
 				values.put(WidgetTable.WIDGET_KEY_NAME, timerName);
 				values.put(WidgetTable.WIDGET_KEY_TIME, Long.toString(timerTime));
+                values.put("tone", tone);
 				values.put(WidgetTable.WIDGET_KEY_WIDGET_ID, mAppWidgetId);
 				getApplicationContext().getContentResolver().insert(WidgetTable.CONTENT_URI, values);
 
@@ -102,7 +108,7 @@ public class AppWidgetConfigure extends ListActivity implements LoaderManager.Lo
 
 	}
 	
-	static final String[] PROJECTION = new String[] {
+	static final String[] PROJECTION = new String[] { "tone",
         TimersProvider.TimerTable._ID,
         TimersProvider.TimerTable.TIMER_KEY_NAME,
         TimersProvider.TimerTable.TIMER_KEY_TIME,

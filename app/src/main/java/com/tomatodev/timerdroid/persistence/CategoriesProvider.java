@@ -85,7 +85,7 @@ public class CategoriesProvider extends ContentProvider {
 
 	
 	private DbOpenHelper mOpenHelper;
-	public static final String AUTHORITY_CATEGORIES = "com.tomatodev.timerdroid.persistence.CategoriesProvider";
+	public static final String AUTHORITY_CATEGORIES = com.tomatodev.timerdroid.BuildConfig.APPLICATION_ID + ".persistence.CategoriesProvider";
 
 	public CategoriesProvider() {
 		// Create and initialize URI matcher.
@@ -109,39 +109,39 @@ public class CategoriesProvider extends ContentProvider {
 		return true;
 	}
 
-	@Override
-	public int delete(Uri uri, String selection, String[] selectionArgs) {
-		SQLiteDatabase db = mOpenHelper.getWritableDatabase();
-        String finalWhere;
-
-        int count;
-
+    @Override
+    public int delete(Uri uri, String selection, String[] selectionArgs) {
+        final String where;
         switch (mUriMatcher.match(uri)) {
             case CATEGORY:
-                // If URI is main table, delete uses incoming where clause and args.
-                count = db.delete(CategoriesTable.TABLE_NAME, selection, selectionArgs);
+                where = selection;
                 break;
-
-                // If the incoming URI matches a single note ID, does the delete based on the
-                // incoming data, but modifies the where clause to restrict it to the
-                // particular note ID.
             case CATEGORY_ID:
-                // If URI is for a particular row ID, delete is based on incoming
-                // data but modified to restrict to the given ID.
-                finalWhere = DatabaseUtils.concatenateWhere(
-                		CategoriesTable._ID + " = " + ContentUris.parseId(uri), selection);
-                count = db.delete(CategoriesTable.TABLE_NAME, finalWhere, selectionArgs);
+                where = DatabaseUtils.concatenateWhere(
+                        CategoriesTable._ID + " = " + ContentUris.parseId(uri), selection);
                 break;
-
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
-
-        getContext().getContentResolver().notifyChange(uri, null);
-
+        SQLiteDatabase db = mOpenHelper.getWritableDatabase();
+        int count;
+        db.beginTransaction();
+        try {
+            // Resolve the selected categories inside the same write transaction.
+            // Running CountDowns and independently configured widgets are snapshots.
+            String categories = "SELECT _id FROM categories" +
+                    (TextUtils.isEmpty(where) ? "" : " WHERE " + where);
+            db.delete(DbAdapter.TIMER_TABLE_NAME, "category IN (" + categories + ")", selectionArgs);
+            count = db.delete(CategoriesTable.TABLE_NAME, where, selectionArgs);
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+        // Category and favorite loaders observe different providers.
+        getContext().getContentResolver().notifyChange(CategoriesTable.CONTENT_URI, null);
+        getContext().getContentResolver().notifyChange(TimersProvider.TimerTable.CONTENT_URI, null);
         return count;
-
-	}
+    }
 
 	@Override
 	public String getType(Uri uri) {
@@ -171,7 +171,7 @@ public class CategoriesProvider extends ContentProvider {
         }
 
         if (!values.containsKey(CategoriesTable.CATEGORIES_KEY_NAME)) {
-            values.put(CategoriesTable.CATEGORIES_KEY_NAME, "Timer");
+            values.put(CategoriesTable.CATEGORIES_KEY_NAME, getContext().getString(com.tomatodev.timerdroid.R.string.cr_timer_category));
         }
 
         SQLiteDatabase db = mOpenHelper.getWritableDatabase();

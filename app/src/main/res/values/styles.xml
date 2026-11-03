@@ -1,14 +1,28 @@
 <resources>
 
     <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
 
+        <!-- Noto Sans SC, SIL OFL 1.1: commercial use and redistribution allowed. -->
+        <item name="fontFamily">@font/noto_sans_sc</item>
+        <item name="android:fontFamily">@font/noto_sans_sc</item>
+        <item name="alertDialogTheme">@style/TimerDialog</item>
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:colorForeground">@color/foreground_material_dark</item>
+        <item name="android:colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/colorPrimary</item>
+        <item name="android:navigationBarColor">@color/colorPrimaryDark</item>
+        <item name="colorControlNormal">@color/text_color_secondary</item>
         <item name="android:textColorPrimary">@color/text_color_primary</item>
         <item name="android:textColorSecondary">@color/text_color_secondary</item>
     </style>
 
+    <style name="TimerDialog" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:colorBackground">@color/timer_surface</item>
+        <item name="android:textColorPrimary">@color/text_color_primary</item>
+        <item name="android:textColorSecondary">@color/text_color_secondary</item>
+        <item name="fontFamily">@font/noto_sans_sc</item>
+    </style>
 </resources>

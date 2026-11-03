@@ -17,6 +17,9 @@ import android.view.ViewGroup;
  * to be used with AppCompat.
  */
 public abstract class AppCompatPreferenceActivity extends PreferenceActivity {
+    @Override protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(com.tomatodev.timerdroid.LanguagePolicy.wrap(base));
+    }
 
     private AppCompatDelegate mDelegate;
 
@@ -81,7 +84,8 @@ public abstract class AppCompatPreferenceActivity extends PreferenceActivity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        getDelegate().onConfigurationChanged(newConfig);
+        com.tomatodev.timerdroid.LanguagePolicy.refresh(getResources());
+        getDelegate().onConfigurationChanged(getResources().getConfiguration());
     }
 
     @Override

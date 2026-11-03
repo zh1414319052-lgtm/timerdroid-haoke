@@ -33,6 +33,8 @@ public class ListTimersFragment extends ListFragment implements LoaderManager.Lo
 	private TimerCursorAdapter items;
 	
 	private LocalBinder localBinder;
+    private ServiceConnection connection;
+    private boolean bound;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -49,11 +51,12 @@ public class ListTimersFragment extends ListFragment implements LoaderManager.Lo
 	
 	private void fillData() {
 		Intent intent = new Intent(this.getActivity(), TimerService.class);
-		ServiceConnection serviceConnection = new ServiceConnection() {
+		connection = new ServiceConnection() {
 
 			@Override
 			public void onServiceDisconnected(ComponentName name) {
 				localBinder = null;
+                items.setLocalBinder(null);
 			}
 
 			@Override
@@ -63,16 +66,23 @@ public class ListTimersFragment extends ListFragment implements LoaderManager.Lo
 
 			}
 		};
-		boolean success = getActivity().getApplicationContext().bindService(intent,
-				serviceConnection, AppCompatActivity.BIND_AUTO_CREATE);
+		bound = getActivity().bindService(intent,
+				connection, AppCompatActivity.BIND_AUTO_CREATE);
 		
 		categoryId = getActivity().getIntent().getIntExtra("category_id", 1);
 		
-        getLoaderManager().initLoader(0, null, this);        
 		items = new TimerCursorAdapter(this.getActivity(), null, getFragmentManager(), localBinder);
 		setListAdapter(items);
+        getLoaderManager().restartLoader(0, null, this);
 	}
 	
+    @Override public void onDestroyView() {
+        if (bound) getActivity().unbindService(connection);
+        bound = false;
+        localBinder = null;
+        super.onDestroyView();
+    }
+
 	@Override
 	public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
 		inflater.inflate(R.menu.action_bar_list_timers, menu);
@@ -82,31 +92,22 @@ public class ListTimersFragment extends ListFragment implements LoaderManager.Lo
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.menu_run_category:
-			List<TimerDescription> queue = new ArrayList<TimerDescription>();
-			Cursor cursor = items.getCursor();
-			cursor.moveToFirst();
-			while (!cursor.isAfterLast()) {
-				String timerName = cursor.getString(cursor.getColumnIndex(TimersProvider.TimerTable.TIMER_KEY_NAME));
-				long timerTime = cursor.getLong(cursor.getColumnIndex(TimersProvider.TimerTable.TIMER_KEY_TIME));
-				queue.add(new TimerDescription(timerName, timerTime));
-				cursor.moveToNext();
-			}
-			try {
-				TimerDescription firstTimer = queue.remove(0);
-				localBinder.getService().startTimer(firstTimer.getName(),
-						firstTimer.getTime(), queue);
-				Intent intent = new Intent(getActivity().getApplicationContext(), HomeActivity.class);
-				MyApplication.showRunningTimers = true;
-				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-						| Intent.FLAG_ACTIVITY_SINGLE_TOP
-						| Intent.FLAG_ACTIVITY_CLEAR_TOP);
-				getActivity().getApplication().startActivity(intent);
-			} catch (IndexOutOfBoundsException e) {
-				// TODO
-			} finally {
-				cursor.close();
-			}
-			
+            Cursor cursor = items.getCursor();
+            if (localBinder == null || cursor == null) return true;
+            List<TimerDescription> queue = new ArrayList<>();
+            int position = cursor.getPosition();
+            for (int index = 0; cursor.moveToPosition(index); index++) {
+                queue.add(new TimerDescription(cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                        cursor.getLong(cursor.getColumnIndexOrThrow("time")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("tone"))));
+            }
+            cursor.moveToPosition(position);
+            if (!queue.isEmpty() && localBinder.getService().startWorkflow(queue, false) >= 0) {
+                MyApplication.showRunningTimers = true;
+                startActivity(new Intent(getActivity(), HomeActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+            }
+
 			return true;
 		default:
 			break;
@@ -119,7 +120,7 @@ public class ListTimersFragment extends ListFragment implements LoaderManager.Lo
         TimersProvider.TimerTable.TIMER_KEY_NAME,
         TimersProvider.TimerTable.TIMER_KEY_TIME,
         TimersProvider.TimerTable.TIMER_KEY_CATEGORY,
-        TimersProvider.TimerTable.TIMER_KEY_FAVORITE,
+        TimersProvider.TimerTable.TIMER_KEY_FAVORITE, "tone",
     };
 
 	@Override

@@ -4,235 +4,131 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.media.AudioAttributes;
-import android.media.AudioManager;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
-import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.TaskStackBuilder;
-import android.text.TextUtils;
 
 import com.tomatodev.timerdroid.R;
+import com.tomatodev.timerdroid.Utilities;
 import com.tomatodev.timerdroid.activities.HomeActivity;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
-public class CustomNotificationManager {
+final class CustomNotificationManager {
+    static final int NOTIFICATION_ID_RUNNING = 1;
+    private static final String RUNNING = "timerdroid_channel_running";
+    private static final String FINISHED = "timerdroid_channel_finished";
+    private final TimerService service;
+    private final NotificationManager manager;
+    private Set<Integer> secondary = new HashSet<>();
 
-    private static final int SOUND_STREAM = AudioManager.STREAM_ALARM;
-
-    // Used for the service notification
-    public static final int NOTIFICATION_ID_RUNNING = 1;
-    public static final int NOTIFICATION_ID_FINISHED = 2;
-
-    public static final String NOTIFICATION_CHANNEL_ID_FINISHED = "timerdroid_channel_finished";
-    public static final String NOTIFICATION_CHANNEL_ID_RUNNING = "timerdroid_channel_running";
-
-    private NotificationManager mNotificationManager;
-
-    private Context mContext;
-    private final AudioManager mAudioManager;
-    private int mRingerModeBefore = 0;
-    private int mVolumeBefore = 0;
-
-    public CustomNotificationManager(Context context) {
-        String ns = Context.NOTIFICATION_SERVICE;
-        mNotificationManager = (NotificationManager) context.getSystemService(ns);
-        mContext = context;
-        mAudioManager = (AudioManager) mContext.getSystemService(
-                Context.AUDIO_SERVICE);
-
-        this.createNotificationChannelAlarm();
-        this.createNotificationChannelRunning();
+    CustomNotificationManager(TimerService service) {
+        this.service = service;
+        manager = (NotificationManager) service.getSystemService(TimerService.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(RUNNING,
+                    service.getString(R.string.notification_channel_running_timers_title),
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setSound(null, null);
+            manager.createNotificationChannel(channel);
+        }
     }
 
-    private void createNotificationChannelAlarm(){
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-//        mNotificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID_RUNNING);
-//        mNotificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID_FINISHED);
-
-        CharSequence name = mContext.getText(R.string.notification_channel_finished_timers_title);
-        int importance = NotificationManager.IMPORTANCE_HIGH;
-        NotificationChannel mChannel = new NotificationChannel(NOTIFICATION_CHANNEL_ID_FINISHED, name, importance);
-        mChannel.enableLights(true);
-        mChannel.setLightColor(Color.RED);
-        mChannel.enableVibration(true);
-        mChannel.setShowBadge(true);
-
-        AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .build();
-        mChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM), audioAttributes);
-        mNotificationManager.createNotificationChannel(mChannel);
+    private NotificationCompat.Builder builder(String channel) {
+        Intent open = new Intent(service, HomeActivity.class);
+        open.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent content = PendingIntent.getActivity(service, 0, open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return new NotificationCompat.Builder(service, channel)
+                .setSmallIcon(R.drawable.ic_stat_timer).setContentIntent(content)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
     }
 
-    private void createNotificationChannelRunning(){
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
-
-        CharSequence name = mContext.getText(R.string.notification_channel_running_timers_title);
-        int importance = NotificationManager.IMPORTANCE_LOW;
-        NotificationChannel mChannel = new NotificationChannel(NOTIFICATION_CHANNEL_ID_RUNNING, name, importance);
-        mChannel.enableLights(false);
-        mChannel.enableVibration(false);
-        mChannel.setShowBadge(false);
-        mChannel.setSound(null, null);
-        mNotificationManager.createNotificationChannel(mChannel);
+    private PendingIntent action(String action, int id) {
+        Intent intent = new Intent(service, TimerService.class).setAction(action)
+                .setData(Uri.parse("timerdroid://session/" + service.token() + "/" + id + "/" + action))
+                .putExtra(TimerService.TOKEN, service.token()).putExtra(TimerService.TIMER_ID, id);
+        return PendingIntent.getService(service, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    private String getRunningTimersText(Collection<TimerService.CountDown> runningTimers){
-
-        if (runningTimers.isEmpty()) {
-            return mContext.getString(R.string.service_no_running_timers);
-        }
-
-        List<String> timerList = new ArrayList<>();
-        for (TimerService.CountDown timer : runningTimers) {
-            timerList.add(timer.getName());
-        }
-
-        return mContext.getString(R.string.service_running_timers)
-                + ": "
-                + TextUtils.join(", ", timerList);
-    }
-
-    private Notification createRunningTimersNotification(Collection<TimerService.CountDown> timers){
-
-        Collection<TimerService.CountDown> runningTimers = new ArrayList<>();
+    Notification running(Collection<TimerService.CountDown> timers) {
+        TimerService.CountDown primary = null;
         for (TimerService.CountDown timer : timers) {
-            if (timer.isStarted()) {
-                runningTimers.add(timer);
+            if (timer.isFinished()) continue;
+            if (primary == null || (timer.isStarted() && (!primary.isStarted()
+                    || timer.getTimeLeft() < primary.getTimeLeft()))) primary = timer;
+        }
+        Set<Integer> current = new HashSet<>();
+        for (TimerService.CountDown timer : timers) {
+            if (timer == primary || timer.isFinished()) continue;
+            int id = 1000 + timer.id * 2;
+            current.add(id);
+            manager.notify(id, session(timer));
+        }
+        for (int id : secondary) if (!current.contains(id)) manager.cancel(id);
+        secondary = current;
+        return primary == null ? builder(RUNNING).build() : session(primary);
+    }
+
+    void clearRunning() {
+        for (int id : secondary) manager.cancel(id);
+        secondary.clear();
+    }
+
+    private Notification session(TimerService.CountDown timer) {
+        long left = timer.getTimeLeft();
+        NotificationCompat.Builder notification = builder(RUNNING).setContentTitle(timer.getName())
+                .setOngoing(true).setOnlyAlertOnce(true)
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS);
+        if (timer.isWaiting()) {
+            notification.setContentText(service.getString(R.string.timer_waiting))
+                    .addAction(0, service.getString(R.string.timer_next), action("next", timer.id));
+        } else {
+            notification.setContentText(service.getString(timer.isPaused() ? R.string.timer_paused_left
+                    : R.string.timer_remaining, Utilities.formatTime(left)));
+            if (timer.isStarted() && Build.VERSION.SDK_INT >= 24) {
+                notification.setWhen(System.currentTimeMillis() + left)
+                        .setShowWhen(true).setUsesChronometer(true);
             }
+            notification.addAction(0, service.getString(R.string.timer_add_minute), action("add", timer.id));
         }
+        Notification result = notification.addAction(0, service.getString(R.string.timer_stop),
+                action("stop", timer.id)).build();
+        if (timer.isStarted() && Build.VERSION.SDK_INT >= 24)
+            result.extras.putBoolean(Notification.EXTRA_CHRONOMETER_COUNT_DOWN, true);
+        return result;
+    }
 
-        long minimumTimeLeft = Long.MAX_VALUE;
-        for (TimerService.CountDown countdown : runningTimers) {
-            if (countdown.getTimeLeft() < minimumTimeLeft) {
-                minimumTimeLeft = countdown.getTimeLeft();
-            }
+    void finished(int id, String name, String tone, boolean waiting) {
+        String channelId = tone.isEmpty() ? FINISHED : FINISHED + "_" + tone;
+        Uri sound = AlarmTones.uri(service, tone);
+        android.content.SharedPreferences prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(service);
+        if (tone.isEmpty() && Build.VERSION.SDK_INT < 26) {
+            String custom = prefs.getString("ringtone", "");
+            if (!custom.isEmpty()) sound = Uri.parse(custom);
         }
-
-        NotificationCompat.Builder notificationBuilder = getNotificationBuilder(NOTIFICATION_CHANNEL_ID_RUNNING);
-
-        notificationBuilder.setNumber(runningTimers.size())
-                .setContentText(getRunningTimersText(runningTimers))
-                .setWhen(System.currentTimeMillis() + minimumTimeLeft)
-                .setOngoing(true);
-
-        return notificationBuilder.build();
-    }
-
-    private NotificationCompat.Builder getNotificationBuilder(String channelId){
-        PendingIntent contentIntent = getIntentStartingApp();
-
-        Bitmap iconTimer = BitmapFactory.decodeResource(mContext.getResources(),
-                R.mipmap.ic_app);
-
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(mContext, channelId)
-                .setContentTitle(mContext.getString(R.string.app_name))
-                .setSmallIcon(R.drawable.ic_stat_timer) // Needed to not get generic Android notification
-                .setLargeIcon(iconTimer)
-                .setFullScreenIntent(contentIntent, false)
-                .setContentIntent(contentIntent);
-
-        return notificationBuilder;
-    }
-
-    private Notification createTimerFinishedNotification(String timerName){
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-
-        String ringtone = prefs.getString("ringtone", "");
-        Uri soundUri = ringtone.equals("") ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) : Uri.parse(ringtone);
-
-        NotificationCompat.Builder notificationBuilder = getNotificationBuilder(NOTIFICATION_CHANNEL_ID_FINISHED)
-                .setContentText(mContext.getText(R.string.service_finished_label) + ": " + timerName)
-                .setSound(soundUri, SOUND_STREAM);
-
-        Notification notificationSound = notificationBuilder.build();
-
-        // TODO what about this insistent preference, can it be done another way?
-        if (prefs.getBoolean("insistent_alarm", true)) {
-            notificationSound.flags |= Notification.FLAG_INSISTENT;
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(channelId,
+                    service.getString(R.string.notification_channel_finished_timers_title)
+                            + " · " + AlarmTones.label(service, tone), NotificationManager.IMPORTANCE_HIGH);
+            channel.setSound(sound, new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build());
+            channel.enableVibration(true);
+            manager.createNotificationChannel(channel);
         }
-
-        return notificationSound;
+        NotificationCompat.Builder notification = builder(channelId).setContentTitle(name)
+                .setContentText(service.getString(waiting ? R.string.timer_waiting : R.string.service_finished_label))
+                .setCategory(NotificationCompat.CATEGORY_ALARM).setSound(sound).setAutoCancel(true);
+        if (waiting) notification.addAction(0, service.getString(R.string.timer_next), action("next", id));
+        Notification completed = notification.build();
+        if (prefs.getBoolean("insistent_alarm", true)) completed.flags |= Notification.FLAG_INSISTENT;
+        manager.notify(1001 + id * 2, completed);
     }
 
-    private PendingIntent getIntentStartingApp() {
-        Intent resultIntent = new Intent(mContext, HomeActivity.class);
-
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(mContext);
-        stackBuilder.addParentStack(HomeActivity.class);
-        stackBuilder.addNextIntent(resultIntent);
-        PendingIntent resultPendingIntent =
-                stackBuilder.getPendingIntent(
-                        0,
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                );
-        return resultPendingIntent;
-    }
-
-    public Notification getNotificationForService(Collection<TimerService.CountDown> timers){
-        return createRunningTimersNotification(timers);
-    }
-
-    public void updateRunningTimersNotification(Collection<TimerService.CountDown> timers) {
-        mNotificationManager.notify(NOTIFICATION_ID_RUNNING, createRunningTimersNotification(timers));
-    }
-
-    public void startNotificationForFinishedTimer(String timerName){
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-        AudioManager audio = (AudioManager) mContext.getSystemService(
-                Context.AUDIO_SERVICE);
-
-        // set alarm volume (API < 26)
-        // TODO problem when 2 alarms go off after each other, will overwrite the system volume
-        if (canSetVolume()){
-            mVolumeBefore = audio.getStreamVolume(SOUND_STREAM);
-            int max = audio.getStreamMaxVolume(SOUND_STREAM);
-            int volume = (int) Math.round(prefs.getInt("alarm_volume", 5) * 0.1 * max);
-            audio.setStreamVolume(AudioManager.STREAM_ALARM, volume, 0);
-            mRingerModeBefore = audio.getRingerMode();
-            audio.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
-        }
-
-        mNotificationManager.notify(NOTIFICATION_ID_FINISHED, createTimerFinishedNotification(timerName));
-    }
-
-    public void cancelSoundNotification(){
-        // reset alarm volume if allowed
-        if (canSetVolume()){
-            mAudioManager.setStreamVolume(AudioManager.STREAM_ALARM, mVolumeBefore, 0);
-            mAudioManager.setRingerMode(mRingerModeBefore);
-        }
-
-        mNotificationManager.cancel(NOTIFICATION_ID_FINISHED);
-    }
-
-    private boolean canSetVolume(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ) {
-            return false;
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            if (!mNotificationManager.isNotificationPolicyAccessGranted()) {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    void dismissFinished(int id) { manager.cancel(1001 + id * 2); }
 }
